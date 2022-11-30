@@ -28,6 +28,14 @@ func NewSignature() *Signature {
 	}
 }
 
+func newSignatureFromAffine(affine *blst.P2Affine, curve []byte) *Signature {
+	return &Signature{
+		signature: affine,
+		buffer:    copyBytes(affine.Compress()),
+		curve:     copyBytes(curve),
+	}
+}
+
 // NewSignatureFromBytes creates a new signature from a 96 bytes long slice.
 func NewSignatureFromBytes(b []byte) (*Signature, error) {
 	if len(b) != signatureLength {

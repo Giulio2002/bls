@@ -52,6 +52,13 @@ func NewPublicKeyFromBytes(b []byte) (*PublicKey, error) {
 	}, nil
 }
 
+func newPublicKeyFromAffine(affine *blst.P1Affine) *PublicKey {
+	return &PublicKey{
+		publicKey: affine,
+		buffer:    copyBytes(affine.Compress()),
+	}
+}
+
 // Bytes returns the bytes repressentation of the public key.
 func (pk *PublicKey) Bytes(b []byte) []byte {
 	return pk.buffer

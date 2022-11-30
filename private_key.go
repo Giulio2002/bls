@@ -50,13 +50,13 @@ func NewPrivateKeyFromBytes(privKey []byte) (*PrivateKey, error) {
 
 // PublicKey retrieve public key from the private key.
 func (p *PrivateKey) PublicKey() *PublicKey {
-	return &PublicKey{publicKey: new(blst.P1Affine).From(p.key)}
+	return newPublicKeyFromAffine(new(blst.P1Affine).From(p.key))
 }
 
 // Sign a message with BLS.
 func (p *PrivateKey) Sign(msg []byte) *Signature {
 	signature := new(blst.P2Affine).Sign(p.key, msg, p.curve)
-	return &Signature{signature: signature}
+	return newSignatureFromAffine(signature, p.curve)
 }
 
 func (p *PrivateKey) Bytes() []byte {
