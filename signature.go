@@ -1,7 +1,6 @@
 package bls
 
 import (
-	"errors"
 	"fmt"
 
 	blst "github.com/supranational/blst/bindings/go"
@@ -32,16 +31,16 @@ func NewSignature() *Signature {
 // NewSignatureFromBytes creates a new signature from a 96 bytes long slice.
 func NewSignatureFromBytes(b []byte) (*Signature, error) {
 	if len(b) != signatureLength {
-		return nil, fmt.Errorf("signature must be 96 bytes")
+		return nil, fmt.Errorf("bls(signature): invalid signature length. should be %d", signatureLength)
 	}
 	signature := new(blst.P2Affine).Uncompress(b)
 	if signature == nil {
-		return nil, errors.New("could not unmarshal bytes into signature")
+		return nil, ErrDeserializePrivateKey
 	}
 	// Group check signature. Do not check for infinity since an aggregated signature
 	// could be infinite.
 	if !signature.SigValidate(false) {
-		return nil, errors.New("signature not in group")
+		return nil, ErrNotGroupSignature
 	}
 	return &Signature{
 		signature: signature,

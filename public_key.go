@@ -1,7 +1,6 @@
 package bls
 
 import (
-	"errors"
 	"fmt"
 
 	blst "github.com/supranational/blst/bindings/go"
@@ -34,17 +33,17 @@ func NewPublicKey() *PublicKey {
 // NewPublicKeyFromBytes Derive new public key from a 48 long byte slice.
 func NewPublicKeyFromBytes(b []byte) (*PublicKey, error) {
 	if len(b) != publicKeyLength {
-		return nil, fmt.Errorf("public key must be 48 bytes")
+		return nil, fmt.Errorf("bls(public): invalid key length. should be %d", publicKeyLength)
 	}
 
 	// Subgroup check NOT done when decompressing pubkey.
 	p := new(blst.P1Affine).Uncompress(b)
 	if p == nil {
-		return nil, errors.New("could not unmarshal bytes into public key")
+		return nil, ErrDeserializePublicKey
 	}
 	// Subgroup and infinity check
 	if !p.KeyValidate() {
-		return nil, fmt.Errorf("infinite key")
+		return nil, ErrInfinitePublicKey
 	}
 
 	return &PublicKey{
