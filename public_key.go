@@ -1,6 +1,7 @@
 package bls
 
 import (
+	"errors"
 	"fmt"
 
 	blst "github.com/supranational/blst/bindings/go"
@@ -62,4 +63,24 @@ func newPublicKeyFromAffine(affine *blst.P1Affine) *PublicKey {
 // Bytes returns the bytes repressentation of the public key.
 func (pk *PublicKey) Bytes(b []byte) []byte {
 	return pk.buffer
+}
+
+func AggregatePublickKeys(pubs [][]byte) ([]byte, error) {
+	if len(pubs) == 0 {
+		return nil, errors.New("nil or empty public keys")
+	}
+	agg := new(blst.P1Aggregate)
+	mulP1 := make([]*blst.P1Affine, 0, len(pubs))
+	for _, pubkey := range pubs {
+		pubKeyObj, err := NewPublicKeyFromBytes(pubkey)
+		if err != nil {
+			return nil, err
+		}
+		mulP1 = append(mulP1, pubKeyObj.publicKey)
+	}
+	// No group check needed here since it is done in PublicKeyFromBytes
+	// Note the checks could be moved from PublicKeyFromBytes into Aggregate
+	// and take advantage of multi-threading.
+	agg.Aggregate(mulP1, false)
+	return copyBytes(agg.ToAffine().Compress()), nil
 }
