@@ -2,4 +2,7 @@ module github.com/Giulio2002/bls
 
 go 1.18
 
-require github.com/supranational/blst v0.3.10 // indirect
+require (
+	github.com/pkg/errors v0.9.1 // indirect
+	github.com/supranational/blst v0.3.10 // indirect
+)
