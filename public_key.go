@@ -37,15 +37,6 @@ func NewPublicKeyFromBytes(b []byte) (*PublicKey, error) {
 		return nil, fmt.Errorf("bls(public): invalid key length. should be %d", publicKeyLength)
 	}
 
-	cacheKey := convertRawPublickKeyToCacheKey(b)
-	cachedAffine := getAffineFromCache(cacheKey)
-	if cachedAffine != nil {
-		return &PublicKey{
-			publicKey: cachedAffine,
-			buffer:    copyBytes(b),
-		}, nil
-	}
-
 	// Subgroup check NOT done when decompressing pubkey.
 	p := new(blst.P1Affine).Uncompress(b)
 	if p == nil {
@@ -55,7 +46,6 @@ func NewPublicKeyFromBytes(b []byte) (*PublicKey, error) {
 	if !p.KeyValidate() {
 		return nil, ErrInfinitePublicKey
 	}
-	loadAffineIntoCache(cacheKey, p)
 
 	return &PublicKey{
 		publicKey: p,
