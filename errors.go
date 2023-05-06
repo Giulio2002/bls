@@ -14,6 +14,4 @@ var (
 	// Signature errors
 	ErrDeserializeSignature = errors.New("bls(signature): could not deserialize")
 	ErrNotGroupSignature    = errors.New("bls(signature): signature is not in group")
-	// Caching Errors
-	ErrCacheNotEnabled = errors.New("cache(): cache not enabled")
 )
