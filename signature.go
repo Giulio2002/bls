@@ -21,30 +21,16 @@ const (
 )
 
 // ETH2 uses BLS12381-G2 Curve
-var defaultCurve = []byte("BLS_SIG_BLS12381G2_XMD:SHA-256_SSWU_RO_POP_")
+var eth2Curve = []byte("BLS_SIG_BLS12381G2_XMD:SHA-256_SSWU_RO_POP_")
 
 // Signature wraps CGO object repressenting the signature.
 type Signature struct {
-	signature *blst.P2Affine
-	buffer    []byte
-	curve     []byte
+	affine *blst.P2Affine
 }
 
 // NewSignature creates a new empty signature.
 func NewSignature() *Signature {
-	return &Signature{
-		signature: new(blst.P2Affine),
-		buffer:    make([]byte, signatureLength),
-		curve:     defaultCurve,
-	}
-}
-
-func newSignatureFromAffine(affine *blst.P2Affine, curve []byte) *Signature {
-	return &Signature{
-		signature: affine,
-		buffer:    copyBytes(affine.Compress()),
-		curve:     copyBytes(curve),
-	}
+	return &Signature{affine: new(blst.P2Affine)}
 }
 
 // NewSignatureFromBytes creates a new signature from a 96 bytes long slice.
@@ -61,35 +47,21 @@ func NewSignatureFromBytes(b []byte) (*Signature, error) {
 	if !signature.SigValidate(false) {
 		return nil, ErrNotGroupSignature
 	}
-	return &Signature{
-		signature: signature,
-		buffer:    copyBytes(b),
-		curve:     defaultCurve,
-	}, nil
-}
-
-// SetCurve change signature curve.
-func (sig *Signature) SetCurve(curve []byte) {
-	sig.curve = copyBytes(curve)
-}
-
-// Bytes returns bytes repressentation.
-func (sig *Signature) Bytes(b []byte) []byte {
-	return sig.buffer
+	return &Signature{affine: signature}, nil
 }
 
 // VerifyAggregate verify signature against many public keys.
-func (sig *Signature) VerifyAggregate(msg []byte, publicKeys []*PublicKey) bool {
+func (s Signature) VerifyAggregate(msg []byte, publicKeys []PublicKey) bool {
 	affines := []*blst.P1Affine{}
 	for _, publicKey := range publicKeys {
-		affines = append(affines, publicKey.publicKey)
+		affines = append(affines, publicKey)
 	}
-	return sig.signature.FastAggregateVerify(true, affines, msg, sig.curve)
+	return s.affine.FastAggregateVerify(true, affines, msg, eth2Curve)
 }
 
 // Verify verify signature against one public key.
-func (sig *Signature) Verify(msg []byte, pk *PublicKey) bool {
-	return sig.signature.Verify(false, pk.publicKey, false, msg, sig.curve)
+func (s Signature) Verify(msg []byte, pk PublicKey) bool {
+	return s.affine.Verify(false, pk, false, msg, eth2Curve)
 }
 
 // VerifyAggregate verify signature against many public keys.
@@ -102,7 +74,7 @@ func VerifyAggregate(signature []byte, msg []byte, publicKeysBytes [][]byte) (bo
 		return false, err
 	}
 
-	publicKeys := []*PublicKey{}
+	publicKeys := []PublicKey{}
 	for _, publicKey := range publicKeysBytes {
 		key, err := NewPublicKeyFromBytes(publicKey)
 		if err != nil {
@@ -155,7 +127,7 @@ func VerifyMultipleSignatures(sigs [][]byte, msgs [][]byte, pubKeys [][]byte) (b
 		if err != nil {
 			return false, err
 		}
-		mulP1Aff[i] = pk.publicKey
+		mulP1Aff[i] = pk
 		rawMsgs[i] = msgs[i][:]
 	}
 	// Secure source of RNG
@@ -174,5 +146,5 @@ func VerifyMultipleSignatures(sigs [][]byte, msgs [][]byte, pubKeys [][]byte) (b
 	dummySig := new(blst.P2Affine)
 
 	// Validate signatures since we uncompress them here. Public keys should already be validated.
-	return dummySig.MultipleAggregateVerify(rawSigs, true, mulP1Aff, false, rawMsgs, defaultCurve, randFunc, randBitsEntropy), nil
+	return dummySig.MultipleAggregateVerify(rawSigs, true, mulP1Aff, false, rawMsgs, eth2Curve, randFunc, randBitsEntropy), nil
 }

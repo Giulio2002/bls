@@ -18,32 +18,22 @@ func copyBytes(x []byte) (y []byte) {
 }
 
 // PublicKey wraps the CGO object of the BLST library and give us easy access to its methods.
-type PublicKey struct {
-	publicKey *blst.P1Affine
-	buffer    []byte
-}
+type PublicKey *blst.P1Affine
 
 // NewPublicKey makes new empty Public Key.
-func NewPublicKey() *PublicKey {
-	return &PublicKey{
-		publicKey: new(blst.P1Affine),
-		buffer:    make([]byte, publicKeyLength),
-	}
+func NewPublicKey() PublicKey {
+	return new(blst.P1Affine)
 }
 
 // NewPublicKeyFromBytes Derive new public key from a 48 long byte slice.
-func NewPublicKeyFromBytes(b []byte) (*PublicKey, error) {
+func NewPublicKeyFromBytes(b []byte) (PublicKey, error) {
 	if len(b) != publicKeyLength {
 		return nil, fmt.Errorf("bls(public): invalid key length. should be %d", publicKeyLength)
 	}
 
-	cacheKey := convertRawPublickKeyToCacheKey(b)
-	cachedAffine := getAffineFromCache(cacheKey)
+	cachedAffine := pkCache.getAffineFromCache(b)
 	if cachedAffine != nil {
-		return &PublicKey{
-			publicKey: cachedAffine,
-			buffer:    copyBytes(b),
-		}, nil
+		return cachedAffine, nil
 	}
 
 	// Subgroup check NOT done when decompressing pubkey.
@@ -55,24 +45,9 @@ func NewPublicKeyFromBytes(b []byte) (*PublicKey, error) {
 	if !p.KeyValidate() {
 		return nil, ErrInfinitePublicKey
 	}
-	loadAffineIntoCache(cacheKey, p)
+	pkCache.loadAffineIntoCache(b, p)
 
-	return &PublicKey{
-		publicKey: p,
-		buffer:    copyBytes(b),
-	}, nil
-}
-
-func newPublicKeyFromAffine(affine *blst.P1Affine) *PublicKey {
-	return &PublicKey{
-		publicKey: affine,
-		buffer:    copyBytes(affine.Compress()),
-	}
-}
-
-// Bytes returns the bytes repressentation of the public key.
-func (pk *PublicKey) Bytes(b []byte) []byte {
-	return pk.buffer
+	return p, nil
 }
 
 func AggregatePublickKeys(pubs [][]byte) ([]byte, error) {
@@ -86,7 +61,7 @@ func AggregatePublickKeys(pubs [][]byte) ([]byte, error) {
 		if err != nil {
 			return nil, err
 		}
-		mulP1 = append(mulP1, pubKeyObj.publicKey)
+		mulP1 = append(mulP1, pubKeyObj)
 	}
 	// No group check needed here since it is done in PublicKeyFromBytes
 	// Note the checks could be moved from PublicKeyFromBytes into Aggregate
