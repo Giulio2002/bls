@@ -12,8 +12,7 @@ const privateKeyLength = 32
 
 // PrivateKey defines a BLS private key.
 type PrivateKey struct {
-	key   *blst.SecretKey
-	curve []byte
+	key *blst.SecretKey
 }
 
 // GenerateKey creates a new random private key.
@@ -25,7 +24,7 @@ func GenerateKey() (*PrivateKey, error) {
 		return nil, err
 	}
 	// Check that private key is not 0.
-	privateKey := &PrivateKey{key: blst.KeyGen(bytes), curve: defaultCurve}
+	privateKey := &PrivateKey{key: blst.KeyGen(bytes)}
 	if privateKey.isZero() {
 		return nil, ErrZeroPrivateKey
 	}
@@ -41,7 +40,7 @@ func NewPrivateKeyFromBytes(privKey []byte) (*PrivateKey, error) {
 	if key == nil {
 		return nil, ErrDeserializePrivateKey
 	}
-	privateKey := &PrivateKey{key: key, curve: defaultCurve}
+	privateKey := &PrivateKey{key: key}
 	if privateKey.isZero() {
 		return nil, ErrZeroPrivateKey
 	}
@@ -49,22 +48,18 @@ func NewPrivateKeyFromBytes(privKey []byte) (*PrivateKey, error) {
 }
 
 // PublicKey retrieve public key from the private key.
-func (p *PrivateKey) PublicKey() *PublicKey {
-	return newPublicKeyFromAffine(new(blst.P1Affine).From(p.key))
+func (p *PrivateKey) PublicKey() PublicKey {
+	return new(blst.P1Affine).From(p.key)
 }
 
 // Sign a message with BLS.
 func (p *PrivateKey) Sign(msg []byte) *Signature {
-	signature := new(blst.P2Affine).Sign(p.key, msg, p.curve)
-	return newSignatureFromAffine(signature, p.curve)
+	signature := new(blst.P2Affine).Sign(p.key, msg, eth2Curve)
+	return &Signature{affine: signature}
 }
 
 func (p *PrivateKey) Bytes() []byte {
 	return p.key.Serialize()
-}
-
-func (p *PrivateKey) SetCurve(curve []byte) {
-	p.curve = copyBytes(curve)
 }
 
 // IsZero checks if the secret key is a zero key.
