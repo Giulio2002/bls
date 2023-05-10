@@ -40,7 +40,7 @@ func NewSignatureFromBytes(b []byte) (*Signature, error) {
 	}
 	signature := new(blst.P2Affine).Uncompress(b)
 	if signature == nil {
-		return nil, ErrDeserializePrivateKey
+		return nil, ErrDeserializeSignature
 	}
 	// Group check signature. Do not check for infinity since an aggregated signature
 	// could be infinite.

@@ -10,13 +10,6 @@ import (
 // Length of a BLS public key
 const publicKeyLength = 48
 
-// Helper method to help us make copy of buffers
-func copyBytes(x []byte) (y []byte) {
-	y = make([]byte, len(x))
-	copy(y, x)
-	return
-}
-
 // PublicKey wraps the CGO object of the BLST library and give us easy access to its methods.
 type PublicKey *blst.P1Affine
 
@@ -67,5 +60,5 @@ func AggregatePublickKeys(pubs [][]byte) ([]byte, error) {
 	// Note the checks could be moved from PublicKeyFromBytes into Aggregate
 	// and take advantage of multi-threading.
 	agg.Aggregate(mulP1, false)
-	return copyBytes(agg.ToAffine().Compress()), nil
+	return agg.ToAffine().Compress(), nil
 }
