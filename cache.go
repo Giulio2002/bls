@@ -24,12 +24,6 @@ func init() {
 	}
 }
 
-func convertRawPublickKeyToCacheKey(raw []byte) [48]byte {
-	var ret [48]byte
-	copy(ret[:], raw)
-	return ret
-}
-
 func SetEnabledCaching(caching bool) {
 	enabledCache = caching
 }
@@ -42,10 +36,7 @@ func (p *publicKeysCache) loadPublicKeyIntoCache(publicKey []byte, validate bool
 	if len(publicKey) != publicKeyLength {
 		return ErrDeserializePublicKey
 	}
-	p.mu.Lock()
-	defer p.mu.Unlock()
-	copy(p.publicKeySharedBuffer[:], publicKey)
-	if _, ok := p.publicKeyCache[p.publicKeySharedBuffer]; ok {
+	if affine := p.getAffineFromCache(publicKey); affine != nil {
 		return nil
 	}
 	// Subgroup check NOT done when decompressing pubkey.
@@ -57,7 +48,7 @@ func (p *publicKeysCache) loadPublicKeyIntoCache(publicKey []byte, validate bool
 	if validate && !publicKeyDecompressed.KeyValidate() {
 		return ErrInfinitePublicKey
 	}
-	p.publicKeyCache[p.publicKeySharedBuffer] = publicKeyDecompressed
+	p.loadAffineIntoCache(publicKey, publicKeyDecompressed)
 	return nil
 }
 
