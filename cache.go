@@ -12,7 +12,7 @@ var (
 )
 
 type publicKeysCache struct {
-	publicKeyCache        map[[48]byte]PublicKey
+	publicKeyCache        map[[48]byte]blst.P1Affine
 	publicKeySharedBuffer [48]byte
 	mu                    sync.Mutex
 }
@@ -20,7 +20,7 @@ type publicKeysCache struct {
 // init is used to initialize cache
 func init() {
 	pkCache = &publicKeysCache{
-		publicKeyCache: make(map[[48]byte]PublicKey),
+		publicKeyCache: make(map[[48]byte]blst.P1Affine),
 	}
 }
 
@@ -29,7 +29,7 @@ func SetEnabledCaching(caching bool) {
 }
 
 func ClearCache() {
-	pkCache.publicKeyCache = make(map[[48]byte]PublicKey)
+	pkCache.publicKeyCache = make(map[[48]byte]blst.P1Affine)
 }
 
 func (p *publicKeysCache) loadPublicKeyIntoCache(publicKey []byte, validate bool) error {
@@ -59,7 +59,7 @@ func (p *publicKeysCache) loadAffineIntoCache(key []byte, affine *blst.P1Affine)
 	p.mu.Lock()
 	defer p.mu.Unlock()
 	copy(p.publicKeySharedBuffer[:], key)
-	p.publicKeyCache[p.publicKeySharedBuffer] = affine
+	p.publicKeyCache[p.publicKeySharedBuffer] = *affine
 }
 
 func LoadPublicKeyIntoCache(publicKey []byte, validate bool) error {
@@ -83,5 +83,5 @@ func (p *publicKeysCache) getAffineFromCache(key []byte) *blst.P1Affine {
 	if !ok {
 		return nil
 	}
-	return affine
+	return &affine
 }
