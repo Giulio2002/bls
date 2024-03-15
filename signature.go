@@ -60,6 +60,11 @@ func (s Signature) VerifyAggregate(msg []byte, publicKeys []PublicKey) bool {
 }
 
 // Verify verify signature against one public key.
+func (s Signature) Bytes() []byte {
+	return s.affine.Compress()
+}
+
+// Verify verify signature against one public key.
 func (s Signature) Verify(msg []byte, pk PublicKey) bool {
 	return s.affine.Verify(false, pk, false, msg, eth2Curve)
 }
@@ -147,4 +152,25 @@ func VerifyMultipleSignatures(sigs [][]byte, msgs [][]byte, pubKeys [][]byte) (b
 
 	// Validate signatures since we uncompress them here. Public keys should already be validated.
 	return dummySig.MultipleAggregateVerify(rawSigs, true, mulP1Aff, false, rawMsgs, eth2Curve, randFunc, randBitsEntropy), nil
+}
+
+func AggregateSignatures(sigs [][]byte) ([]byte, error) {
+	if len(sigs) == 0 {
+		return nil, ErrNoSignaturesToAggregate
+	}
+
+	agg := new(blst.P2Aggregate)
+	mulP2 := make([]*blst.P2Affine, 0, len(sigs))
+	for _, pubkey := range sigs {
+		sigObj, err := NewSignatureFromBytes(pubkey)
+		if err != nil {
+			return nil, err
+		}
+		mulP2 = append(mulP2, sigObj.affine)
+	}
+	// No group check needed here since it is done in PublicKeyFromBytes
+	// Note the checks could be moved from PublicKeyFromBytes into Aggregate
+	// and take advantage of multi-threading.
+	agg.Aggregate(mulP2, false)
+	return agg.ToAffine().Compress(), nil
 }

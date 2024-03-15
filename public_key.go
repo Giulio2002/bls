@@ -18,6 +18,10 @@ func NewPublicKey() PublicKey {
 	return new(blst.P1Affine)
 }
 
+func CompressPublicKey(p PublicKey) []byte {
+	return (*blst.P1Affine)(p).Compress()
+}
+
 // NewPublicKeyFromBytes Derive new public key from a 48 long byte slice.
 func NewPublicKeyFromBytes(b []byte) (PublicKey, error) {
 	if len(b) != publicKeyLength {

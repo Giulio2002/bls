@@ -69,10 +69,6 @@ func TestSigningAndVerifying(t *testing.T) {
 	require.NoError(t, err)
 }
 
-func TestSigning(t *testing.T) {
-
-}
-
 func TestAggregateVerifyInfinity(t *testing.T) {
 	valid, err := bls.VerifyMultipleSignatures(
 		[][]byte{
@@ -108,6 +104,31 @@ func TestVerify(t *testing.T) {
 	valid, err := bls.Verify(convertHexToSignature("af1390c3c47acdb37131a51216da683c509fce0e954328a59f93aebda7e4ff974ba208d9a4a2a2389f892a9d418d618418dd7f7a6bc7aa0da999a9d3a5b815bc085e14fd001f6a1948768a3f4afefc8b8240dda329f984cb345c6363272ba4fe"),
 		convertHexToMessage("5656565656565656565656565656565656565656565656565656565656565656"),
 		convertHexToPublicKey("b301803f8b5ac4a1133581fc676dfedc60d891dd5fa99028805e5ea5b08d3491af75d0707adab3b70c6a6a580217bf81"))
+	require.NoError(t, err)
+	require.True(t, valid)
+}
+
+func TestAggregateSignatures(t *testing.T) {
+	msg := convertHexToMessage("5656565656565656565656565656565656565656565656565656565656565656")
+
+	privateKey1, err := bls.GenerateKey()
+	require.NoError(t, err)
+	privateKey2, err := bls.GenerateKey()
+	require.NoError(t, err)
+
+	signature1 := privateKey1.Sign(msg)
+	signature2 := privateKey2.Sign(msg)
+
+	publicKey1 := privateKey1.PublicKey()
+	publicKey2 := privateKey2.PublicKey()
+
+	aggregatedPublicKey, err := bls.AggregatePublickKeys([][]byte{bls.CompressPublicKey(publicKey1), bls.CompressPublicKey(publicKey2)})
+	require.NoError(t, err)
+
+	aggregatedSignature, err := bls.AggregateSignatures([][]byte{signature1.Bytes(), signature2.Bytes()})
+	require.NoError(t, err)
+
+	valid, err := bls.Verify(aggregatedSignature, msg, aggregatedPublicKey)
 	require.NoError(t, err)
 	require.True(t, valid)
 }
