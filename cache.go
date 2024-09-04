@@ -53,7 +53,7 @@ func (p *publicKeysCache) loadAffineIntoCache(key []byte, affine *blst.P1Affine)
 	if !enabledCache {
 		return
 	}
-	p.publicKeyCache.Store((*[48]byte)(unsafe.Pointer(&key[0])), *affine)
+	p.publicKeyCache.Store(*(*[48]byte)(unsafe.Pointer(&key[0])), *affine)
 }
 
 func LoadPublicKeyIntoCache(publicKey []byte, validate bool) error {
@@ -70,7 +70,7 @@ func (p *publicKeysCache) getAffineFromCache(key []byte) *blst.P1Affine {
 	if len(key) != publicKeyLength {
 		return nil
 	}
-	val, ok := p.publicKeyCache.Load((*[48]byte)(unsafe.Pointer(&key[0])))
+	val, ok := p.publicKeyCache.Load(*(*[48]byte)(unsafe.Pointer(&key[0])))
 	if !ok {
 		return nil
 	}
