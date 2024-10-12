@@ -5,7 +5,7 @@ go 1.23
 require (
 	github.com/pkg/errors v0.9.1
 	github.com/stretchr/testify v1.8.2
-	github.com/supranational/blst v0.3.11
+	github.com/supranational/blst v0.3.13
 )
 
 require (
