@@ -26,7 +26,7 @@ func SetEnabledCaching(caching bool) {
 }
 
 func ClearCache() {
-	pkCache.publicKeyCache.Clear()
+	pkCache.publicKeyCache = sync.Map{}
 }
 
 func (p *publicKeysCache) loadPublicKeyIntoCache(publicKey []byte, validate bool) error {
