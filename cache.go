@@ -1,8 +1,8 @@
 package bls
 
 import (
+	"bytes"
 	"sync"
-	"unsafe"
 
 	blst "github.com/supranational/blst/bindings/go"
 )
@@ -12,13 +12,22 @@ var (
 	enabledCache bool
 )
 
+// We build a basic cache to avoid allocs with sync.Map.
+type kvCache struct {
+	key   []byte
+	value *blst.P1Affine
+}
+
 type publicKeysCache struct {
-	publicKeyCache sync.Map
+	cache [][]kvCache
+
+	mu sync.RWMutex
 }
 
 // init is used to initialize cache
 func init() {
 	pkCache = &publicKeysCache{}
+	pkCache.cache = make([][]kvCache, 256)
 }
 
 func SetEnabledCaching(caching bool) {
@@ -26,7 +35,7 @@ func SetEnabledCaching(caching bool) {
 }
 
 func ClearCache() {
-	pkCache.publicKeyCache = sync.Map{}
+	pkCache.cache = make([][]kvCache, 256)
 }
 
 func (p *publicKeysCache) loadPublicKeyIntoCache(publicKey []byte, validate bool) error {
@@ -53,7 +62,9 @@ func (p *publicKeysCache) loadAffineIntoCache(key []byte, affine *blst.P1Affine)
 	if !enabledCache {
 		return
 	}
-	p.publicKeyCache.Store(*(*[48]byte)(unsafe.Pointer(&key[0])), *affine)
+	p.mu.Lock()
+	defer p.mu.Unlock()
+	p.cache[key[0]] = append(p.cache[key[0]], kvCache{key: key, value: affine})
 }
 
 func LoadPublicKeyIntoCache(publicKey []byte, validate bool) error {
@@ -70,12 +81,15 @@ func (p *publicKeysCache) getAffineFromCache(key []byte) *blst.P1Affine {
 	if len(key) != publicKeyLength {
 		return nil
 	}
-	val, ok := p.publicKeyCache.Load(*(*[48]byte)(unsafe.Pointer(&key[0])))
-	if !ok {
-		return nil
-	}
+	p.mu.RLock()
+	defer p.mu.RUnlock()
+	idx := key[0]
 
-	// let's not check if this succeeds, as it must.
-	affine, _ := val.(blst.P1Affine)
-	return &affine
+	candidates := p.cache[idx]
+	for _, candidate := range candidates {
+		if bytes.Equal(candidate.key, key) {
+			return candidate.value
+		}
+	}
+	return nil
 }
