@@ -24,10 +24,12 @@ type publicKeysCache struct {
 	mu sync.RWMutex
 }
 
+const baseCacheLayer = 16384
+
 // init is used to initialize cache
 func init() {
 	pkCache = &publicKeysCache{}
-	pkCache.cache = make([][]kvCache, 256)
+	pkCache.cache = make([][]kvCache, baseCacheLayer)
 }
 
 func SetEnabledCaching(caching bool) {
@@ -35,7 +37,7 @@ func SetEnabledCaching(caching bool) {
 }
 
 func ClearCache() {
-	pkCache.cache = make([][]kvCache, 256)
+	pkCache.cache = make([][]kvCache, baseCacheLayer)
 }
 
 func (p *publicKeysCache) loadPublicKeyIntoCache(publicKey []byte, validate bool) error {
@@ -83,9 +85,12 @@ func (p *publicKeysCache) getAffineFromCache(key []byte) *blst.P1Affine {
 	}
 	p.mu.RLock()
 	defer p.mu.RUnlock()
-	idx := key[0]
+	var idx int
+	for i := 0; i < publicKeyLength; i++ {
+		idx += int(key[i])
+	}
 
-	candidates := p.cache[idx]
+	candidates := p.cache[idx%baseCacheLayer]
 	for _, candidate := range candidates {
 		if bytes.Equal(candidate.key, key) {
 			return candidate.value
