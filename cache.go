@@ -2,6 +2,7 @@ package bls
 
 import (
 	"bytes"
+	"sort"
 	"sync"
 
 	blst "github.com/supranational/blst/bindings/go"
@@ -66,7 +67,15 @@ func (p *publicKeysCache) loadAffineIntoCache(key []byte, affine *blst.P1Affine)
 	}
 	p.mu.Lock()
 	defer p.mu.Unlock()
-	p.cache[key[0]] = append(p.cache[key[0]], kvCache{key: key, value: affine})
+	var idx int
+	for i := 0; i < publicKeyLength; i++ {
+		idx += int(key[i])
+	}
+	baseIdx := idx % baseCacheLayer
+	p.cache[baseIdx] = append(p.cache[baseIdx], kvCache{key: key, value: affine})
+	sort.Slice(p.cache[baseIdx], func(i, j int) bool {
+		return bytes.Compare(p.cache[baseIdx][i].key, p.cache[baseIdx][j].key) < 0
+	})
 }
 
 func LoadPublicKeyIntoCache(publicKey []byte, validate bool) error {
@@ -91,10 +100,13 @@ func (p *publicKeysCache) getAffineFromCache(key []byte) *blst.P1Affine {
 	}
 
 	candidates := p.cache[idx%baseCacheLayer]
-	for _, candidate := range candidates {
-		if bytes.Equal(candidate.key, key) {
-			return candidate.value
-		}
+
+	i := sort.Search(len(candidates), func(i int) bool {
+		return bytes.Compare(candidates[i].key, key) >= 0
+	})
+	if i < len(candidates) && bytes.Equal(candidates[i].key, key) {
+		return candidates[i].value
 	}
+
 	return nil
 }
