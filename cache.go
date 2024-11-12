@@ -1,8 +1,9 @@
 package bls
 
 import (
+	"bytes"
+	"sort"
 	"sync"
-	"unsafe"
 
 	blst "github.com/supranational/blst/bindings/go"
 )
@@ -12,13 +13,24 @@ var (
 	enabledCache bool
 )
 
-type publicKeysCache struct {
-	publicKeyCache sync.Map
+// We build a basic cache to avoid allocs with sync.Map.
+type kvCache struct {
+	key   []byte
+	value *blst.P1Affine
 }
+
+type publicKeysCache struct {
+	cache [][]kvCache
+
+	mu sync.RWMutex
+}
+
+const baseCacheLayer = 16384
 
 // init is used to initialize cache
 func init() {
 	pkCache = &publicKeysCache{}
+	pkCache.cache = make([][]kvCache, baseCacheLayer)
 }
 
 func SetEnabledCaching(caching bool) {
@@ -26,7 +38,7 @@ func SetEnabledCaching(caching bool) {
 }
 
 func ClearCache() {
-	pkCache.publicKeyCache = sync.Map{}
+	pkCache.cache = make([][]kvCache, baseCacheLayer)
 }
 
 func (p *publicKeysCache) loadPublicKeyIntoCache(publicKey []byte, validate bool) error {
@@ -53,7 +65,17 @@ func (p *publicKeysCache) loadAffineIntoCache(key []byte, affine *blst.P1Affine)
 	if !enabledCache {
 		return
 	}
-	p.publicKeyCache.Store(*(*[48]byte)(unsafe.Pointer(&key[0])), *affine)
+	p.mu.Lock()
+	defer p.mu.Unlock()
+	var idx int
+	for i := 0; i < publicKeyLength; i++ {
+		idx += int(key[i])
+	}
+	baseIdx := idx % baseCacheLayer
+	p.cache[baseIdx] = append(p.cache[baseIdx], kvCache{key: key, value: affine})
+	sort.Slice(p.cache[baseIdx], func(i, j int) bool {
+		return bytes.Compare(p.cache[baseIdx][i].key, p.cache[baseIdx][j].key) < 0
+	})
 }
 
 func LoadPublicKeyIntoCache(publicKey []byte, validate bool) error {
@@ -70,12 +92,21 @@ func (p *publicKeysCache) getAffineFromCache(key []byte) *blst.P1Affine {
 	if len(key) != publicKeyLength {
 		return nil
 	}
-	val, ok := p.publicKeyCache.Load(*(*[48]byte)(unsafe.Pointer(&key[0])))
-	if !ok {
-		return nil
+	p.mu.RLock()
+	defer p.mu.RUnlock()
+	var idx int
+	for i := 0; i < publicKeyLength; i++ {
+		idx += int(key[i])
 	}
 
-	// let's not check if this succeeds, as it must.
-	affine, _ := val.(blst.P1Affine)
-	return &affine
+	candidates := p.cache[idx%baseCacheLayer]
+
+	i := sort.Search(len(candidates), func(i int) bool {
+		return bytes.Compare(candidates[i].key, key) >= 0
+	})
+	if i < len(candidates) && bytes.Equal(candidates[i].key, key) {
+		return candidates[i].value
+	}
+
+	return nil
 }
