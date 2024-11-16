@@ -24,6 +24,10 @@ func CompressPublicKey(p PublicKey) []byte {
 
 // NewPublicKeyFromBytes Derive new public key from a 48 long byte slice.
 func NewPublicKeyFromBytes(b []byte) (PublicKey, error) {
+	return newPublicKeyFromBytes(b, true)
+}
+
+func newPublicKeyFromBytes(b []byte, loadInCache bool) (PublicKey, error) {
 	if len(b) != publicKeyLength {
 		return nil, fmt.Errorf("bls(public): invalid key length. should be %d", publicKeyLength)
 	}
@@ -42,7 +46,9 @@ func NewPublicKeyFromBytes(b []byte) (PublicKey, error) {
 	if !p.KeyValidate() {
 		return nil, ErrInfinitePublicKey
 	}
-	pkCache.loadAffineIntoCache(b, p)
+	if loadInCache {
+		pkCache.loadAffineIntoCache(b, p)
+	}
 
 	return p, nil
 }
