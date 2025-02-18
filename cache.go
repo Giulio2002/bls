@@ -61,6 +61,12 @@ func (p *publicKeysCache) loadPublicKeyIntoCache(publicKey []byte, validate bool
 	return nil
 }
 
+func copyBytes(b []byte) []byte {
+	c := make([]byte, len(b))
+	copy(c, b)
+	return c
+}
+
 func (p *publicKeysCache) loadAffineIntoCache(key []byte, affine *blst.P1Affine) {
 	if !enabledCache {
 		return
@@ -72,7 +78,7 @@ func (p *publicKeysCache) loadAffineIntoCache(key []byte, affine *blst.P1Affine)
 		idx += int(key[i])
 	}
 	baseIdx := idx % baseCacheLayer
-	p.cache[baseIdx] = append(p.cache[baseIdx], kvCache{key: key, value: affine})
+	p.cache[baseIdx] = append(p.cache[baseIdx], kvCache{key: copyBytes(key), value: affine})
 	sort.Slice(p.cache[baseIdx], func(i, j int) bool {
 		return bytes.Compare(p.cache[baseIdx][i].key, p.cache[baseIdx][j].key) < 0
 	})
